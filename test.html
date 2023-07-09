@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    #canvas {
+      background-color: #f5f5f5;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <button id="record-button">Record</button>
+  <canvas id="canvas" width="400" height="100"></canvas>
+
+  <script>
+    const canvas = document.getElementById("canvas");
+    const context = canvas.getContext("2d");
+    let isRecording = false;
+    let audioContext;
+    let analyser;
+    let dataArray;
+
+    const constraints = { audio: true };
+
+    function initializeAudio() {
+      audioContext = new AudioContext();
+      analyser = audioContext.createAnalyser();
+      dataArray = new Uint8Array(analyser.frequencyBinCount);
+    }
+
+    function startRecording() {
+      navigator.mediaDevices.getUserMedia(constraints)
+        .then(function(stream) {
+          const source = audioContext.createMediaStreamSource(stream);
+          source.connect(analyser);
+
+          isRecording = true;
+          drawSoundWave();
+        })
+        .catch(function(err) {
+          console.log("The following error occurred: " + err);
+        });
+    }
+
+    function stopRecording() {
+      isRecording = false;
+      context.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    function drawSoundWave() {
+      if (!isRecording) return;
+
+      requestAnimationFrame(drawSoundWave);
+      analyser.getByteTimeDomainData(dataArray);
+
+      context.fillStyle = "#000000";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.lineWidth = 2;
+      context.strokeStyle = "#ffffff";
+      context.beginPath();
+
+      const sliceWidth = canvas.width / dataArray.length;
+      let x = 0;
+
+      for (let i = 0; i < dataArray.length; i++) {
+        const v = dataArray[i] / 128.0;
+        const y = (v * canvas.height) / 2;
+
+        if (i === 0) {
+          context.moveTo(x, y);
+        } else {
+          context.lineTo(x, y);
+        }
+
+        x += sliceWidth;
+      }
+
+      context.stroke();
+    }
+
+    const recordButton = document.getElementById("record-button");
+    recordButton.addEventListener("click", function() {
+      if (!isRecording) {
+        initializeAudio();
+        startRecording();
+        recordButton.textContent = "Stop";
+      } else {
+        stopRecording();
+        recordButton.textContent = "Record";
+      }
+    });
+  </script>
+</body>
+</html>
